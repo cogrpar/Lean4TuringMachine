@@ -1,5 +1,16 @@
 import AxiomaticSystem
 
+namespace List
+  -- define a function that removes all instances of a passed element from a list (corresponds to setminus when using lists in place of sets)
+  def remove {α : Type u} [BEq α] : (element : α) → (list : List α) → List α
+    | element, nil => nil
+    | element, cons first rest => 
+      if first == element then
+        remove element rest
+      else
+        [first] ++ (remove element rest)
+end List
+
 /-
 NOTE: I am using List in place of sets
 
@@ -11,7 +22,10 @@ Axiom naming convention:
   * relations between these objects are of the form 'ax__[object 1]_[relation]_[object 2]_[relation]_..._[object n]'
 -/
 
+
 -- Formal def of Turing Machine
+
+-- Postulate 
 axiom Γ : List String -- finite alphabet including blank symbol 'b' that can be stored on the tape
 def b : String := "" -- blank character
 axiom ax__b_in_Γ : List.elem b Γ = true -- Prop that b is an element of Γ
