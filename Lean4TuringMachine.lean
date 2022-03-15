@@ -2,19 +2,29 @@ import AxiomaticSystem
 
 namespace List
   -- define a function that removes all instances of a passed element from a list (corresponds to setminus when using lists in place of sets)
-  def remove {α : Type u} [BEq α] : (element : α) → (list : List α) → List α
+  def remove {α : Type u} [BEq α] : α → List α → List α
     | element, nil => nil
     | element, cons first rest => 
       if first == element then
         remove element rest
       else
         [first] ++ (remove element rest)
+
+  -- define a function that checks to see if all elements of one list are elements of another list (corresponds to A ⊂ B when using lists in place of sets)
+  def sublist {α : Type u} [BEq α] : List α → List α → Bool
+    | nil, nil             => true
+    | nil, cons first rest => true
+    | cons first rest, nil => false
+    | cons firstA restA, cons firstB restB =>
+      if firstA == firstB ∨ List.elem firstA restB then -- if the first element of A is in B
+        sublist restA ([firstB]++restB) -- check the rest of A
+      else false
 end List
 
 /-
 NOTE: I am using List in place of sets
 
-Axiomatic reconstruction of P versus NP problem as stated in the official problem outline provided by the Clay Institute
+Axiomatic reconstruction of Turing Machine from P versus NP problem as stated in the official problem outline provided by the Clay Institute
 This outline can be found at 'https://www.claymath.org/sites/default/files/pvsnp.pdf'
 
 Axiom naming convention: 
@@ -22,31 +32,27 @@ Axiom naming convention:
   * relations between these objects are of the form 'ax__[object 1]_[relation]_[object 2]_[relation]_..._[object n]'
 -/
 
-
 -- Formal def of Turing Machine
+namespace TuringMachine
+  -- Define the blank symbol
+  constant b : String := " "
 
--- Postulate 
-axiom Γ : List String -- finite alphabet including blank symbol 'b' that can be stored on the tape
-def b : String := "" -- blank character
-axiom ax__b_in_Γ : List.elem b Γ = true -- Prop that b is an element of Γ
+  -- Define the finite alphabet
+  constant Γ : List String := ["1", "0", b] -- finite alphabet including blank symbol 'b' that can be stored on the tape
 
-axiom sigma : List String -- specified input alphabet of M, which is a subset of Γ and does not include b
-axiom ax__sigma_subset_of_Γ : ∀ symbol : String, List.elem symbol sigma → List.elem symbol Γ -- for each symbol, if it is in sigma, it will be in Γ (ie. sigma ⊂ Γ)
-axiom ax__not_b_in_sigma : List.elem b sigma = false -- the blank symbol b is not in sigma
+  -- Define the machine's input alphabet
+  constant sigma : List String := List.remove b Γ -- specified input alphabet of M, which is a subset of Γ and does not include b
 
-axiom Q : List String -- set of possible states, stored in this formulation as strings
-axiom q₀ : String -- the inital state of the machine
-axiom q_accept : String -- special accept state
-axiom q_reject : String -- special reject state
-axiom ax__q₀_in_Q : List.elem q₀ Q = true -- the initial state is an element of Q
-axiom ax__q_accept_in_Q : List.elem q_accept Q = true -- q_accept state is an element of Q
-axiom ax__q_reject_in_Q : List.elem q_reject Q = true -- q_reject state is an element of Q
+  -- Define the machine's states
+  constant Q : List String := ["right", "carry", "done"] -- list of possible states the machine can be in
+  constant q₀ : String := List.get! 0 Q -- state that the machine starts in
+  constant q_accept : String := List.get! 2 Q -- state that results in the machine halting once reached, signifying the program ran to completion successfully
+  constant q_reject : String := "reject" -- state that results in the machine halting once reached, signifying the transition function rejected its inputs
 
-axiom transitions : (String × String) -- pair of strings representing the possible transitions of the machine head
-axiom ax__plus_1_and_minus_1_in_transitions : transitions.1 = "-1" ∧ transitions.2 = "+1" -- axiom to encode the transitions as strings
-axiom δ (q : String) (s : String) : (String × (String × String)) -- transition function of the form '(Q−{q_accept, q_reject}) × Γ → Q × Γ × {−1, 1}'
-axiom ax__δ_returns_Q_Γ_transition : ∀ q s : String, 
-  if List.elem q Q 
+  -- Define the transition function
+  constant transitions : (String × String) := ("-1", "+1") -- pair of strings representing the possible transitions of the machine head
+  constant δ (q : String) (s : String) : (String × (String × String)) := -- transition function of the form '(Q−{q_accept, q_reject}) × Γ → Q × Γ × {−1, 1}'
+    if List.elem q Q 
       /-
         q is an element of Q (ie. the current state of the machine)
       -/ 
@@ -59,25 +65,26 @@ axiom ax__δ_returns_Q_Γ_transition : ∀ q s : String,
         s is an element of Γ (ie. s is the symbol on the current square)
       -/
   then
-    List.elem (δ q s).1 Q = true
-    /-
-      the first member of the objects returned by δ, (Q × Γ × {−1, 1}), is an element of Q (ie. the new state of the machine)
-    -/
-    ∧ List.elem (δ q s).2.1 Γ = true
-    /-
-      the second member of the objects returned by δ, (Q × Γ × {−1, 1}), is an element of Γ (ie. the new symbol written to the current square)
-    -/
-    ∧ ((δ q s).2.2 = transitions.1 ∨ (δ q s).2.2 = transitions.2)
-    /-
-      the second member of the objects returned by δ, (Q × Γ × {−1, 1}), is '-1' or '1' (ie. the direction in which the head of the machine will move)
-    -/
-  else 
-    (δ q s) = ("", "", "") -- if inputs are passed to the transition function that are outside of its domain, an empty output is returned
+    if (q == Q.get! 0) then
+      if (List.elem s [Γ.get! 0, Γ.get! 1]) then
+        (Q.get! 0, s, transitions.2) -- move right
+      else
+        (Q.get! 1, s, transitions.1) -- move left
+    else if (q == Q.get! 1) then
+      if (List.elem s [Γ.get! 0]) then
+        (Q.get! 1, Γ.get! 1, transitions.1) -- move left
+      else
+        (Q.get! 2, Γ.get! 0, transitions.1) -- move left
+    else -- done
+      (q_accept, s, transitions.2) -- accept state, don't change tape, move to the right once more before halting
+  else -- transition function rejects the inputs
+    (q_reject, s, transitions.2) -- reject state, don't change tape, move to the right once more before halting
 
-axiom T : ( -- axiom defining T to be a tuple of the form〈sigma, Γ, Q, δ〉
-  List String /-sigma-/ 
-  × List String /-Γ-/ 
-  × List String /-Q-/ 
-  × (String → String → String × String × String) /-δ-/
-)
-axiom ax__sigma_Γ_Q_δ_in_T : (T.1 = sigma) ∧ (T.2.1 = Γ) ∧ (T.2.2.1 = Q) ∧ (T.2.2.2 = δ) -- axiom specifying the elements of T
+end TuringMachine
+
+-- Define the componenets needed to impliment a machine, namely the tape
+constant Tape : List String := ["1", "0", "1", " ", " "]
+
+
+-- Prove that the instance of the machine defined above is valid
+
