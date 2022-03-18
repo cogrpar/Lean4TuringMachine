@@ -39,15 +39,19 @@ namespace TuringMachine
 
   -- Define the finite alphabet
   constant Γ : List String := ["1", "0", b] -- finite alphabet including blank symbol 'b' that can be stored on the tape
+  axiom ax__b_in_Γ : (List.elem b Γ)=true -- postulate that the provided Γ contains b
 
   -- Define the machine's input alphabet
   constant sigma : List String := List.remove b Γ -- specified input alphabet of M, which is a subset of Γ and does not include b
+  axiom ax__sigma_subset_Γ : (List.sublist sigma Γ)=true -- postulate that the provided sigma is a subset of Γ
+  axiom ax__b_not_in_sigma : (List.elem b sigma)=false -- postulate that the provided sigma does not contain b
 
   -- Define the machine's states
   constant Q : List String := ["right", "carry", "done"] -- list of possible states the machine can be in
   constant q₀ : String := List.get! 0 Q -- state that the machine starts in
   constant q_accept : String := List.get! 2 Q -- state that results in the machine halting once reached, signifying the program ran to completion successfully
   constant q_reject : String := "reject" -- state that results in the machine halting once reached, signifying the transition function rejected its inputs
+  axiom ax__q₀_q_accept_q_reject_in_Q : (List.elem q₀ Q)=true ∧ (List.elem q_accept Q)=true ∧ (List.elem q_reject Q)=true -- postulate that the provided Q contains q₀, q_accept, and q_reject
 
   -- Define the transition function
   constant transitions : (String × String) := ("-1", "+1") -- pair of strings representing the possible transitions of the machine head
@@ -80,11 +84,44 @@ namespace TuringMachine
   else -- transition function rejects the inputs
     (q_reject, s, transitions.2) -- reject state, don't change tape, move to the right once more before halting
 
+  -- Instance of Turing Machine
+  def TM := (sigma, Γ, Q, δ)
+
+  -- Postulate the conditions for an object with the structure of a turing machine to be a valid machine
+  constant valid : (List String × List String × List String × (String → String → String × String × String)) → Bool -- maps an object with the structure of a turing machine to its validity
+  axiom T : 
+    ∀ t : ( -- structure of T is a tuple of the form〈sigma, Γ, Q, δ〉
+      List String /-sigma-/ 
+      × List String /-Γ-/ 
+      × List String /-Q-/ 
+      × (String → String → String × String × String) /-δ-/
+    ),
+    let σ := t.1
+    let γ := t.2.1
+    let ϙ := t.2.2.1
+    let Δ := t.2.2.2
+      
+    -- condition 1: Γ contains b
+    (List.elem b γ) = true →
+    -- condition 2: sigma is a subset of Γ
+    (List.sublist σ γ) = true →
+    -- condition 3: sigma does not contain b
+    (List.elem b σ) = false →
+    -- condition 4: Q contains q₀, q_accept, and q_reject
+    (List.elem q₀ Q) = true ∧ (List.elem q_accept Q) = true ∧ (List.elem q_reject Q) = true
+      
+    → valid t = true
 end TuringMachine
 
 -- Define the componenets needed to impliment a machine, namely the tape
 constant Tape : List String := ["1", "0", "1", " ", " "]
 
+theorem showValid : (TuringMachine.valid TuringMachine.TM = true) :=
+    show TuringMachine.valid TuringMachine.TM = true from 
+      TuringMachine.T TuringMachine.TM
+        TuringMachine.ax__b_in_Γ -- condition 1
+        TuringMachine.ax__sigma_subset_Γ -- condition 2
+        TuringMachine.ax__b_not_in_sigma -- condition 3
+        TuringMachine.ax__q₀_q_accept_q_reject_in_Q -- condition 4
 
--- Prove that the instance of the machine defined above is valid
-
+#check showValid
