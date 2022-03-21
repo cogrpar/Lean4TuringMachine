@@ -39,7 +39,7 @@ namespace TuringMachine
 
   -- Define the finite alphabet
   constant Γ : List String := ["1", "0", b] -- finite alphabet including blank symbol 'b' that can be stored on the tape
-  axiom ax__b_in_Γ : (List.elem b Γ)=true -- postulate that the provided Γ contains b
+  axiom ax__b_in_Γ : (List.elem b Γ)=true -- postulate that the provided Γ contains b (TODO have the proofs of the conditions come from c++ functions using the lean ABI)
 
   -- Define the machine's input alphabet
   constant sigma : List String := List.remove b Γ -- specified input alphabet of M, which is a subset of Γ and does not include b
@@ -83,6 +83,16 @@ namespace TuringMachine
       (q_accept, s, transitions.2) -- accept state, don't change tape, move to the right once more before halting
   else -- transition function rejects the inputs
     (q_reject, s, transitions.2) -- reject state, don't change tape, move to the right once more before halting
+  axiom ax__δ_inputs_yield_correct_outputs : ∀(q s : String),
+    if ¬(List.elem q (List.remove q_accept (List.remove q_reject Q)) ∧ List.elem s Γ) then 
+      (δ q s).1 = q_reject
+    else
+      ¬((δ q s).1 = q_reject)
+  axiom ax__δ_outputs_are_correct_form : ∀(q s : String),
+      List.elem (δ q s).1 Q 
+      ∧ List.elem (δ q s).2.1 Γ
+      ∧ ((δ q s).2.2 = transitions.1 ∨ (δ q s).2.2 = transitions.2)
+
 
   -- Instance of Turing Machine
   def TM := (sigma, Γ, Q, δ)
@@ -108,8 +118,20 @@ namespace TuringMachine
     -- condition 3: sigma does not contain b
     (List.elem b σ) = false →
     -- condition 4: Q contains q₀, q_accept, and q_reject
-    (List.elem q₀ Q) = true ∧ (List.elem q_accept Q) = true ∧ (List.elem q_reject Q) = true
-      
+    (List.elem q₀ ϙ) = true ∧ (List.elem q_accept ϙ) = true ∧ (List.elem q_reject ϙ) = true →
+    -- condition 5: structure of δ
+    -- a. the first input is an element of Q and not q_accept or q_reject, and the second input is an element of Γ (if this is not the case, q_reject is returned)
+    ((q s : String) → 
+    if ¬(List.elem q (List.remove q_accept (List.remove q_reject ϙ)) ∧ List.elem s γ) then 
+      (Δ q s).1 = q_reject
+    else
+      ¬((Δ q s).1 = q_reject)) →
+    -- b. the output is of the form Q × Γ × {−1, 1}
+    ((q s : String) →
+    List.elem (Δ q s).1 ϙ
+    ∧ List.elem (Δ q s).2.1 γ
+    ∧ ((Δ q s).2.2 = transitions.1 ∨ (Δ q s).2.2 = transitions.2))
+
     → valid t = true
 end TuringMachine
 
@@ -123,5 +145,7 @@ theorem showValid : (TuringMachine.valid TuringMachine.TM = true) :=
         TuringMachine.ax__sigma_subset_Γ -- condition 2
         TuringMachine.ax__b_not_in_sigma -- condition 3
         TuringMachine.ax__q₀_q_accept_q_reject_in_Q -- condition 4
+        TuringMachine.ax__δ_inputs_yield_correct_outputs -- condition 5a
+        TuringMachine.ax__δ_outputs_are_correct_form -- condition 5b
 
 #check showValid
