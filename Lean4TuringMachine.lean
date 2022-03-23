@@ -147,35 +147,56 @@ theorem showValid : (TuringMachine.valid TuringMachine.TM = true) :=
         TuringMachine.ax__δ_inputs_yield_correct_outputs -- condition 5a
         TuringMachine.ax__δ_outputs_are_correct_form -- condition 5b
 
-#check showValid
+#check showValid -- the rest of the script will only run without error if TM is shown to be valid above
 
 -- Define the componenets needed to impliment a machine, namely the tape, the current position of the machine head on the tape (measured as number of spaces from the leftmost cell), and the current state
 constant Tape : (List String × Nat × String) := (["1", "0", "1"], 0, "right")
 
 -- function that takes an instance of a Turing Machine, a tape of symbols, and the current position of the machine head and returns the updated tape and head position
-def stepMachine : (List String × List String × List String × (String → String → String × String × String)) → (List String × Nat × String) → (List String × Nat × String) :=
-  fun tm : (List String × List String × List String × (String → String → String × String × String)) =>
-    let σ := tm.1
-    let γ := tm.2.1
-    let ϙ := tm.2.2.1
-    let Δ := tm.2.2.2
+def stepMachine : (List String × Nat × String) → (List String × Nat × String) :=
+  let σ := TuringMachine.TM.1
+  let γ := TuringMachine.TM.2.1
+  let ϙ := TuringMachine.TM.2.2.1
+  let Δ := TuringMachine.TM.2.2.2
   
-    fun tape : (List String × Nat × String) => 
-      let tape_data := tape.1
-      let tape_pos := tape.2.1
-      let tape_data_current := 
-        if tape_pos >= (List.length tape_data) then -- blank symbol as this cell has not been written to yet
-          TuringMachine.b
+  fun tape : (List String × Nat × String) => 
+    let tape_data := tape.1
+    let tape_pos := tape.2.1
+    let tape_data_current := 
+      if tape_pos >= (List.length tape_data) then -- blank symbol as this cell has not been written to yet
+        TuringMachine.b
+      else 
+        tape_data.get! tape_pos
+
+    let machine_state := tape.2.2
+
+    -- make sure that the current symbols on the tape is within the input library of tm (γ)
+    if ¬(List.elem tape_data_current γ) then 
+      -- this symbol is not within the set of valid input symbols, so return the current tape and position, and set the state to q_reject
+      (tape_data, tape_pos, TuringMachine.q_reject)
+    else -- the current symbol is valid
+      -- use the transition function to get the next state, symbol to write, and direction to move the head
+      let q := (Δ machine_state tape_data_current).1
+      let s := (Δ machine_state tape_data_current).2.1
+      let transition := (Δ machine_state tape_data_current).2.2
+
+      -- update the current cell of the tape to be s 
+      let tape_data_updated := tape_data.set tape_pos s
+      -- update the machine head position
+      if (tape_pos == 0 ∧ transition == "-1") then -- if the machine is in the leftmost occupied cell and moves left
+        let tape_data_updated := [TuringMachine.b] ++ tape_data_updated
+        (tape_data_updated, tape_pos, q)
+      else if (tape_pos == tape_data_updated.length-1 ∧ transition == "+1") then -- if the machine is in the rightmost occupied cell and moves right
+        let tape_data_updated := tape_data_updated ++ [TuringMachine.b]
+        let tape_pos_updated := tape_pos + 1
+        (tape_data_updated, tape_pos_updated, q)
+      else 
+        if (transition == "+1") then 
+          let tape_pos_updated := tape_pos + 1
+          (tape_data_updated, tape_pos_updated, q)
         else 
-          tape_data.get! tape_pos
+          let tape_pos_updated := tape_pos - 1
+          (tape_data_updated, tape_pos_updated, q)
 
-      let machine_state := tape.2.2
 
-      -- make sure that the current symbols on the tape is within the input library of tm (γ)
-      if ¬(List.elem tape_data_current γ) then 
-        -- this symbol is not within the set of valid input symbols, so return the current tape and position, and set the state to q_reject
-        (tape_data, tape_pos, TuringMachine.q_reject)
-      else -- the current symbol is valid
-        (tape_data, tape_pos, TuringMachine.q_accept) -- TODO finish this
-
-#eval stepMachine TuringMachine.TM Tape
+#eval stepMachine (stepMachine (stepMachine (stepMachine (stepMachine (stepMachine Tape))))) -- 5 steps for this program to halt
