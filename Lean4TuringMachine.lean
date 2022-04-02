@@ -39,7 +39,7 @@ namespace TuringMachine
 
   -- Define the finite alphabet
   constant Γ : List String := ["1", "0", b] -- finite alphabet including blank symbol 'b' that can be stored on the tape
-  axiom ax__b_in_Γ : (List.elem b Γ)=true -- postulate that the provided Γ contains b (TODO have the proofs of the conditions come from c++ functions using the lean ABI)
+  axiom ax__b_in_Γ : (List.elem b Γ)=true -- postulate that the provided Γ contains b
 
   -- Define the machine's input alphabet
   constant sigma : List String := List.remove b Γ -- specified input alphabet of M, which is a subset of Γ and does not include b
