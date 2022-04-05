@@ -1,4 +1,6 @@
 /build
 /.vscode
 /ProgrammableTuringMachine/bin
+/ProgrammableTuringMachine/temp
 /Lean4TuringMachine/bin
+/test
