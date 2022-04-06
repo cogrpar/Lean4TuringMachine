@@ -23,6 +23,4 @@ bin_dir: clean
 
 clean:
 	@rm -rf ${mkfile_path}/bin || true
-	@rm -rf ${mkfile_path}/temp/AxiomaticSystem || true
-	@rm ${mkfile_path}/temp/AxiomaticSystem.c || true
-	@rm ${mkfile_path}/temp/Lean4TuringMachine.c || true
+	@rm -rf ${mkfile_path}/temp || true
