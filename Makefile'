@@ -1,0 +1,7 @@
+mkfile_path := $(subst /Makefile,,$(abspath $(lastword $(MAKEFILE_LIST))))
+
+setup_programmable_turing_machine: build_lean4_turing_machine_deps#set up ProgrammableTuringMachine built on Lean4TuringMachine
+	@cd ${mkfile_path}/ProgrammableTuringMachine 
+
+build_lean4_turing_machine_deps:#build Lean4TuringMachine and all of is deps
+	@cd ${mkfile_path}/Lean4TuringMachine && make

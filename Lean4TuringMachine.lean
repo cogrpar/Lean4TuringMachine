@@ -1,4 +1,6 @@
 import AxiomaticSystem
+import Lean4TuringMachine.foreign_deps
+open AxiomaticSystem
 
 namespace List
   -- define a function that removes all instances of a passed element from a list (corresponds to setminus when using lists in place of sets)
@@ -55,6 +57,24 @@ namespace TuringMachine
 
   -- Define the transition function
   constant transitions : (String × String) := ("-1", "+1") -- pair of strings representing the possible transitions of the machine head
+  constant program : String := "
+    # This is the first example machine given by Alan Turing in his 1936 paper
+    #   'On Computable Numbers, with an Application to
+    #    the Entscheidungsproblem'.
+    # It simply writes the endless sequence 0 1 0 1 0 1...
+    blank: ' '
+    start state: b
+    table:
+      b:
+        ' ': {write: 0, R: c}
+      c:
+        ' ':           {R: e}
+      e:
+        ' ': {write: 1, R: f}
+      f:
+        ' ':           {R: b}
+    # (source: https://github.com/aepsilon/turing-machine-viz)
+  "
   constant δ (q : String) (s : String) : (String × (String × String)) := -- transition function of the form '(Q−{q_accept, q_reject}) × Γ → Q × Γ × {−1, 1}'
     if List.elem q Q 
       /-
@@ -200,3 +220,5 @@ def stepMachine : (List String × Nat × String) → (List String × Nat × Stri
 
 
 #eval stepMachine (stepMachine (stepMachine (stepMachine (stepMachine (stepMachine Tape))))) -- 5 steps for this program to halt
+
+#eval (GeneralTransitionFunction " " " ")
