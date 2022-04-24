@@ -221,4 +221,4 @@ def stepMachine : (List String × Nat × String) → (List String × Nat × Stri
 
 #eval stepMachine (stepMachine (stepMachine (stepMachine (stepMachine (stepMachine Tape))))) -- 5 steps for this program to halt
 
-#eval (GeneralTransitionFunction ["test0", "test1", "test2", "test3"] ["test1", "test2"] ("-1", "+1") "[program]" "state" "symbol")
+#eval (GeneralTransitionFunction ["test0", "test1", "test2", "test3"] ["test1", "test2"] ("-1", "+1") TuringMachine.program "state" "symbol")
