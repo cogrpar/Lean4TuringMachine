@@ -2,6 +2,7 @@
 #include <cstring>
 #include <vector>
 #include <lean/lean.h>
+#include <stdexcept>
 
 std::vector<char*> split (char* input, char* delim){
     char* inputCopy = strdup(input);
@@ -54,7 +55,7 @@ extern "C" lean_object * general_transition_function(lean_object *Q, lean_object
 
     // make sure that the blank symbol is in Gamma
     for (int i = 0; i < programLines.size(); i++){
-        char* blank = strstr(programLines.at(i), "blank:");
+        char* blank = strstr(programLines.at(i), "blank");
         if (blank){
             std::vector<char*> blankChar = split(blank, "'");
             if (blankChar.size() < 2){
@@ -71,12 +72,51 @@ extern "C" lean_object * general_transition_function(lean_object *Q, lean_object
         }
     }
 
+    // make sure that the current state and symbol are valid
+    bool valid = false;
+    for (int i = 0; i < sizeof(QArray); i++){
+        valid = (std::strcmp(QArray[i], currentState)==0);
+        if (valid) break;
+    }
+    if (!valid) throw "Turing Machine Invalid State";
+    valid = false;
+    for (int i = 0; i < sizeof(GammaArray); i++){
+        valid = (std::strcmp(GammaArray[i], currentSymbol)==0);
+        if (valid) break;
+    }
+    if (!valid) throw "Turing Machine Invalid Symbol";
+
     // find the transition based on the table
-    
+    int table_line = -1;
+    for (int i = 0; i < programLines.size(); i++){
+        if (strstr(programLines.at(i), "table")){
+            table_line = i;
+            break;
+        }
+    }
+    if (table_line == -1){
+        throw "Turing Machine Program Syntax Error"; // table was not found
+    }
+    for (int i = table_line+1; i < programLines.size(); i++){
+        if (strstr(programLines.at(i), currentState)){
+            try{
+                char* restOfLine = split(programLines.at(i), ":").at(1);
+
+                
+
+                break;
+            }
+            catch (const std::out_of_range& e) {
+                throw "Turing Machine Program Syntax Error";
+            }
+        }
+    }
 
     lean_object * returnState = lean_mk_string(currentState);
     lean_object * returnSymbol = lean_mk_string(currentSymbol);
-    lean_object * returnTransition = lean_mk_string(programLines.at(4));
+    lean_object * returnTransition = lean_mk_string(programLines.at(7));
+
+    // make sure that the return state and symbol are valid
 
     lean_object * res_1 = lean_alloc_ctor(0, 2, 0);
     lean_object * res_2 = lean_alloc_ctor(0, 2, 0);
