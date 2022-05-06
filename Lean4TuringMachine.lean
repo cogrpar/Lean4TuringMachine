@@ -63,7 +63,7 @@ namespace TuringMachine
     #    the Entscheidungsproblem'.
     # It simply writes the endless sequence 0 1 0 1 0 1...
     blank: ' '
-    start state: b
+    start state: b 
     table:
       b:
         ' ': {write: 0, R: c}
@@ -221,4 +221,4 @@ def stepMachine : (List String × Nat × String) → (List String × Nat × Stri
 
 #eval stepMachine (stepMachine (stepMachine (stepMachine (stepMachine (stepMachine Tape))))) -- 5 steps for this program to halt
 
-#eval (GeneralTransitionFunction ["test0", "test1", "test2", "test3"] ["test1", "test2"] ("-1", "+1") TuringMachine.program "state" "symbol")
+#eval (GeneralTransitionFunction ["test0", "test1", "test2", "test3"] ["test1", "test2", " "] ("-1", "+1") TuringMachine.program "state" "symbol")

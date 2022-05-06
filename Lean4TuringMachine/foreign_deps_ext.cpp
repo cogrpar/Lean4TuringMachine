@@ -5,42 +5,39 @@
 
 std::vector<char*> split (char* input, char* delim){
     char* inputCopy = strdup(input);
-    std::vector<char*> result = {};
+    std::vector<char*> result;
     result.push_back(std::strtok(inputCopy, delim));
     char* next = strtok(NULL, delim);
-    int i = 1;
-    while (next != NULL){
+    while (next){
         result.push_back(next);
         next = strtok(NULL, delim);
-        i++;
     }
-    free(inputCopy);
     return result;
 }
 
-extern "C" lean_object * general_transition_function(lean_object *Q, lean_object *Gamma, lean_object *transitions, lean_object *table, lean_object *q, lean_object *s, double Q_len, double Gamma_len, lean_object /* w */) {
+extern "C" lean_object * general_transition_function(lean_object *Q, lean_object *Gamma, lean_object *transitions, lean_object *table, lean_object *q, lean_object *s, double QLen, double GammaLen, lean_object /* w */) {
     // returns (String × (String × String)) of the form Q × Γ × {−1, 1}
 
     // convert Q from List String to a char* array
-    char * Q_array[(int)Q_len];
-    lean_object ** Q_ctor = (lean_to_ctor(Q)->m_objs);
-    for (int i = 0; i < Q_len-1; i++){
-        Q_array[i] = lean_to_string(Q_ctor[0])->m_data;
-        Q_ctor = (lean_to_ctor(Q_ctor[1])->m_objs);
+    char * QArray[(int)QLen];
+    lean_object ** QCtor = (lean_to_ctor(Q)->m_objs);
+    for (int i = 0; i < QLen-1; i++){
+        QArray[i] = lean_to_string(QCtor[0])->m_data;
+        QCtor = (lean_to_ctor(QCtor[1])->m_objs);
     }
-    Q_array[(int)Q_len-1] = lean_to_string(Q_ctor[0])->m_data;
+    QArray[(int)QLen-1] = lean_to_string(QCtor[0])->m_data;
 
     // convert Gamma from List String to a char* array
-    char * Gamma_array[(int)Gamma_len];
-    lean_object ** Gamma_ctor = (lean_to_ctor(Gamma)->m_objs);
-    for (int i = 0; i < Gamma_len-1; i++){
-        Gamma_array[i] = lean_to_string(Gamma_ctor[0])->m_data;
-        Gamma_ctor = (lean_to_ctor(Gamma_ctor[1])->m_objs);
+    char * GammaArray[(int)GammaLen];
+    lean_object ** GammaCtor = (lean_to_ctor(Gamma)->m_objs);
+    for (int i = 0; i < GammaLen-1; i++){
+        GammaArray[i] = lean_to_string(GammaCtor[0])->m_data;
+        GammaCtor = (lean_to_ctor(GammaCtor[1])->m_objs);
     }
-    Gamma_array[(int)Gamma_len-1] = lean_to_string(Gamma_ctor[0])->m_data;
+    GammaArray[(int)GammaLen-1] = lean_to_string(GammaCtor[0])->m_data;
 
     // convert transitions from (String × String) to a char* array
-    char * transitions_array[2] = {lean_to_string(lean_ctor_get(transitions, 0))->m_data, lean_to_string(lean_ctor_get(transitions, 1))->m_data};
+    char * transitionsArray[2] = {lean_to_string(lean_ctor_get(transitions, 0))->m_data, lean_to_string(lean_ctor_get(transitions, 1))->m_data};
 
     // get the program, current state, and current symbol as strings
     char * program = lean_to_string(table)->m_data;
@@ -50,12 +47,36 @@ extern "C" lean_object * general_transition_function(lean_object *Q, lean_object
     // split program into lines
     std::vector<char*> programLines = split(program, "\n");
 
+    // remove any comments
+    for (int i = 0; i < programLines.size(); i++){
+        programLines.at(i) = split(programLines.at(i), "#").at(0);
+    } 
+
     // make sure that the blank symbol is in Gamma
+    for (int i = 0; i < programLines.size(); i++){
+        char* blank = strstr(programLines.at(i), "blank:");
+        if (blank){
+            std::vector<char*> blankChar = split(blank, "'");
+            if (blankChar.size() < 2){
+                throw "Turing Machine Program Syntax Error";
+            }
+            bool contained = false;
+            for (int j = 0; j < GammaLen && !contained; j++){
+                contained = (std::strcmp(blankChar.at(1), GammaArray[j])==0);
+            }
+            if (!contained){
+                throw "Turing Machine Invalid Blank Symbol";
+            }
+            break;
+        }
+    }
+
+    // find the transition based on the table
     
 
     lean_object * returnState = lean_mk_string(currentState);
     lean_object * returnSymbol = lean_mk_string(currentSymbol);
-    lean_object * returnTransition = lean_mk_string(programLines.at(3));
+    lean_object * returnTransition = lean_mk_string(programLines.at(4));
 
     lean_object * res_1 = lean_alloc_ctor(0, 2, 0);
     lean_object * res_2 = lean_alloc_ctor(0, 2, 0);
