@@ -44,6 +44,7 @@ extern "C" lean_object * general_transition_function(lean_object *Q, lean_object
     char * program = lean_to_string(table)->m_data;
     char * currentState = lean_to_string(q)->m_data;
     char * currentSymbol = lean_to_string(s)->m_data;
+    if ((std::strcmp(currentSymbol, " ")==0)) currentSymbol = "\' \'";
 
     // split program into lines
     std::vector<char*> programLines = split(program, "\n");
@@ -74,13 +75,13 @@ extern "C" lean_object * general_transition_function(lean_object *Q, lean_object
 
     // make sure that the current state and symbol are valid
     bool valid = false;
-    for (int i = 0; i < sizeof(QArray); i++){
+    for (int i = 0; i < QLen; i++){
         valid = (std::strcmp(QArray[i], currentState)==0);
         if (valid) break;
     }
     if (!valid) throw "Turing Machine Invalid State";
     valid = false;
-    for (int i = 0; i < sizeof(GammaArray); i++){
+    for (int i = 0; i < GammaLen; i++){
         valid = (std::strcmp(GammaArray[i], currentSymbol)==0);
         if (valid) break;
     }
@@ -97,12 +98,35 @@ extern "C" lean_object * general_transition_function(lean_object *Q, lean_object
     if (table_line == -1){
         throw "Turing Machine Program Syntax Error"; // table was not found
     }
+    char* currentSymbolPossibleOrientations[] = {
+        ' '+currentSymbol, ' '+currentSymbol+' ', ' '+currentSymbol+']', ' '+currentSymbol+',', ' '+currentSymbol+'\'', ' '+currentSymbol+'$',
+        ','+currentSymbol, ','+currentSymbol+' ', ','+currentSymbol+']', ','+currentSymbol+',', ','+currentSymbol+'\'', ','+currentSymbol+'$',
+        '['+currentSymbol, '['+currentSymbol+' ', '['+currentSymbol+']', '['+currentSymbol+',', '['+currentSymbol+'\'', '['+currentSymbol+'$',
+        '\''+currentSymbol, '\''+currentSymbol+' ', '\''+currentSymbol+']', '\''+currentSymbol+',', '\''+currentSymbol+'\'', '\''+currentSymbol+'$'
+    }; // array of possible ways that the current symbol could appear in context in the table
     for (int i = table_line+1; i < programLines.size(); i++){
         if (strstr(programLines.at(i), currentState)){
             try{
-                char* restOfLine = split(programLines.at(i), ":").at(1);
-
-                
+                std::vector<char*> nextLine;
+                bool reachedEnd = false;
+                bool reachedSymbol = false;
+                int steps = 1;
+                while (!reachedEnd){
+                    nextLine = split(programLines.at(i+steps), ":");
+                    std::strcat(nextLine.at(0), "$");
+                    for (int j = 0; j < QLen && !reachedEnd; j++){ // see if the end of this table entry has been reached
+                        if (strstr(nextLine.at(0), QArray[j])) reachedEnd = true;
+                    }
+                    for (int j = 0; j < sizeof(currentSymbolPossibleOrientations) && !reachedSymbol; j++){ // check if this line specifies the action to be taken for the current symbol
+                        if (strstr(nextLine.at(0), currentSymbolPossibleOrientations[j])) reachedSymbol = true;;
+                    }
+                    if (reachedEnd && !reachedSymbol) throw std::out_of_range("end was reached without finding symbol"); // the end was reached without finding the symbol
+                    else if (reachedSymbol){
+                        programLines.at(i+steps) = currentSymbol;
+                        break;
+                    }
+                    steps++;
+                }
 
                 break;
             }
@@ -114,7 +138,7 @@ extern "C" lean_object * general_transition_function(lean_object *Q, lean_object
 
     lean_object * returnState = lean_mk_string(currentState);
     lean_object * returnSymbol = lean_mk_string(currentSymbol);
-    lean_object * returnTransition = lean_mk_string(programLines.at(7));
+    lean_object * returnTransition = lean_mk_string(programLines.at(8));
 
     // make sure that the return state and symbol are valid
 
