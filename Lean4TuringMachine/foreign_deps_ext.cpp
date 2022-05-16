@@ -146,6 +146,7 @@ extern "C" lean_object * general_transition_function(lean_object * Q, lean_objec
                         if (reachedEnd && !reachedSymbol) throw std::out_of_range("end was reached without finding symbol"); // the end was reached without finding the symbol
                         else if (!reachedEnd && reachedSymbol){
                             // located table entry for this machine configuration
+                            
                             break;
                         }
                         steps++;
