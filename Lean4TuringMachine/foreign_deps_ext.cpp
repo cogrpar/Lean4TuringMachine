@@ -53,7 +53,7 @@ extern "C" lean_object * general_transition_function(lean_object * Q, lean_objec
     char* program = lean_to_string(table)->m_data;
     char* currentState = lean_to_string(q)->m_data;
     char* currentSymbol = lean_to_string(s)->m_data;
-    if ((std::strcmp(currentSymbol, " ")==0)) currentSymbol = "\' \'";
+    if ((strcmp(currentSymbol, " ")==0)) currentSymbol = "\' \'";
 
     // split program into lines
     std::vector<char*> programLines = split(program, "\n");
@@ -76,11 +76,11 @@ extern "C" lean_object * general_transition_function(lean_object * Q, lean_objec
                 if (blankChar.size() < 2){
                     throw "Turing Machine Program Syntax Error";
                 }
-                if ((std::strcmp(blankChar.at(1), " ")==0)) blankChar.at(1) = "\' \'";
+                if ((strcmp(blankChar.at(1), " ")==0)) blankChar.at(1) = "\' \'";
                 bool contained = false;
                 for (int j = 0; j < GammaLen && !contained; j++){
-                    if ((std::strcmp(GammaArray[j], " ")==0)) GammaArray[j] = "\' \'";
-                    contained = (std::strcmp(blankChar.at(1), GammaArray[j])==0);
+                    if ((strcmp(GammaArray[j], " ")==0)) GammaArray[j] = "\' \'";
+                    contained = (strcmp(blankChar.at(1), GammaArray[j])==0);
                 }
                 if (!contained){
                     throw "Turing Machine Invalid Blank Symbol";
@@ -92,18 +92,21 @@ extern "C" lean_object * general_transition_function(lean_object * Q, lean_objec
         // make sure that the current state and symbol are valid
         bool valid = false;
         for (int i = 0; i < QLen; i++){
-            valid = (std::strcmp(QArray[i], currentState)==0);
+            valid = (strcmp(QArray[i], currentState)==0);
             if (valid) break;
         }
         if (!valid) throw "Turing Machine Invalid State";
         valid = false;
         for (int i = 0; i < GammaLen; i++){
-            valid = (std::strcmp(GammaArray[i], currentSymbol)==0);
+            valid = (strcmp(GammaArray[i], currentSymbol)==0);
             if (valid) break;
         }
         if (!valid) throw "Turing Machine Invalid Symbol";
 
         // find the transition based on the table
+        char* retSy = "";
+        char* retTr = "";
+        char* retSt = "";
         int table_line = -1;
         for (int i = 0; i < programLines.size(); i++){
             if (strstr(programLines.at(i), "table")){
@@ -115,13 +118,20 @@ extern "C" lean_object * general_transition_function(lean_object * Q, lean_objec
             throw "Turing Machine Program Syntax Error"; // table was not found
         }
         char symbolPossibleOrientations[20][2] = {
-            {' ', ' '}, {' ', ']'}, {' ', ','}, {' ', '\''}, {' ', '$'},
-            {',', ' '}, {',', ']'}, {',', ','}, {',', '\''}, {',', '$'},
-            {'[', ' '}, {'[', ']'}, {'[', ','}, {'[', '\''}, {'[', '$'},
-            {'\'', ' '}, {'\'', ']'}, {'\'', ','}, {'\'', '\''}, {'\'', '$'}
+            {' ', ' '}, {' ', ']'}, {' ', ','}, {' ', '\''}, {' ', '\0'},
+            {',', ' '}, {',', ']'}, {',', ','}, {',', '\''}, {',', '\0'},
+            {'[', ' '}, {'[', ']'}, {'[', ','}, {'[', '\''}, {'[', '\0'},
+            {'\'', ' '}, {'\'', ']'}, {'\'', ','}, {'\'', '\''}, {'\'', '\0'}
         }; // array of possible ways that the current symbol could appear in context in the table
-        for (int i = table_line+1; i < programLines.size(); i++){
-            if (strstr(programLines.at(i), currentState)){
+        for (int i = table_line+1; i < programLines.size(); i++){ 
+            char* stateOrientation = new char[strlen(currentState)+3]; // check for (' '+currentState+':')
+            stateOrientation[0] = ' ';
+            for (int j = 0; j < strlen(currentState); j++){
+                stateOrientation[j+1] = currentState[j];
+            }
+            stateOrientation[strlen(currentState)+1] = ':';
+            stateOrientation[strlen(currentState)+2] = '\0';
+            if (strstr(programLines.at(i), stateOrientation)){
                 try{
                     std::vector<char*> nextLine;
                     bool reachedEnd = false;
@@ -129,7 +139,6 @@ extern "C" lean_object * general_transition_function(lean_object * Q, lean_objec
                     int steps = 1;
                     while (!reachedEnd){
                         nextLine = split(programLines.at(i+steps), ":");
-                        strcat(nextLine.at(0), "$");
                         for (int j = 0; j < QLen && !reachedEnd; j++){ // see if the end of this table entry has been reached
                             if (strstr(nextLine.at(0), QArray[j])) reachedEnd = true;
                         }
@@ -143,10 +152,60 @@ extern "C" lean_object * general_transition_function(lean_object * Q, lean_objec
                             possibleOrientation[strlen(currentSymbol)+2] = '\0';
                             if (strstr(nextLine.at(0), possibleOrientation)) reachedSymbol = true;
                         }
-                        if (reachedEnd && !reachedSymbol) throw std::out_of_range("end was reached without finding symbol"); // the end was reached without finding the symbol
+                        if (reachedEnd && !reachedSymbol){
+                            // the end was reached without finding the symbol, ie. the machine has halted
+                            retSt = "halted";
+                            retSy = "halted";
+                            retTr = "halted";
+                        }
                         else if (!reachedEnd && reachedSymbol){
                             // located table entry for this machine configuration
-                            
+                            if (strstr(nextLine.at(1), "write")){
+                                // remove spaces
+                                int count = 0;
+                                for (int j = 0; nextLine.at(2)[j]; j++)
+                                    if (nextLine.at(2)[j] != ' ')
+                                        nextLine.at(2)[count++] = nextLine.at(2)[j];
+                                nextLine.at(2)[count] = '\0';
+                                retSy = split(nextLine.at(2), ",").at(0); // symbol
+
+                                if (strcmp(split(nextLine.at(2), ",").at(1), "R")==0) retTr = "+1";
+                                else retTr = "-1"; // transition
+
+                                if (nextLine.size() > 3){
+                                    count = 0;
+                                    for (int j = 0; nextLine.at(3)[j]; j++)
+                                        if (nextLine.at(3)[j] != ' ' && nextLine.at(3)[j] != '}')
+                                            nextLine.at(3)[count++] = nextLine.at(3)[j];
+                                    nextLine.at(3)[count] = '\0';
+                                    retSt = nextLine.at(3);
+                                }
+                                else retSt = currentState; // state
+                            }
+                            else if (nextLine.size() == 3){
+                                retSy = currentSymbol; //symbol
+
+                                if (strstr(nextLine.at(1), "R")) retTr = "+1";
+                                else retTr = "-1"; // transition
+
+                                int count = 0;
+                                for (int j = 0; nextLine.at(2)[j]; j++)
+                                    if (nextLine.at(2)[j] != ' ' && nextLine.at(2)[j] != '}')
+                                        nextLine.at(2)[count++] = nextLine.at(2)[j];
+                                nextLine.at(2)[count] = '\0';
+                                retSt = nextLine.at(2); // state
+                            }
+                            else if (nextLine.size() == 2){
+                                retSt = currentState; // state
+                                retSy = currentSymbol; //symbol
+                                
+                                if (strstr(nextLine.at(1), "R")) retTr = "+1";
+                                else retTr = "-1"; // transition
+                            }
+                            else{
+                                 throw std::out_of_range("invalid instructions");
+                            }
+
                             break;
                         }
                         steps++;
@@ -160,11 +219,28 @@ extern "C" lean_object * general_transition_function(lean_object * Q, lean_objec
             }
         }
 
-        returnState = lean_mk_string(currentState);
-        returnSymbol = lean_mk_string(currentSymbol);
-        returnTransition = lean_mk_string(programLines.at(8));
+        returnState = lean_mk_string(retSt);
+        returnSymbol = lean_mk_string(retSy);
+        returnTransition = lean_mk_string(retTr);
 
         // make sure that the return state and symbol are valid
+        valid = false;
+        for (int i = 0; i < QLen; i++){
+            valid = (strcmp(QArray[i], retSt)==0);
+            if (valid) break;
+        }
+        if (strcmp("halted", retSt)==0) valid = true;
+        if (!valid) throw "Turing Machine Invalid State";
+        valid = false;
+        for (int i = 0; i < GammaLen; i++){
+            valid = (strcmp(GammaArray[i], retSy)==0);
+            if (valid) break;
+        }
+        if (strcmp("halted", retSy)==0) valid = true;
+        if (!valid) throw "Turing Machine Invalid Symbol";
+        valid = false;
+        if (strcmp(transitionsArray[0], retSy)==0 || strcmp(transitionsArray[1], retSy)==0 || strcmp("halted", retSy)==0) valid = true;
+        if (!valid) throw "Turing Machine Invalid Transition";
     }
     catch (char const* c){ // turing machine error, pass it to returned objects
         returnState = lean_mk_string(c);
