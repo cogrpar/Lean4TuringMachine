@@ -239,7 +239,7 @@ extern "C" lean_object * general_transition_function(lean_object * Q, lean_objec
         if (strcmp("halted", retSy)==0) valid = true;
         if (!valid) throw "Turing Machine Invalid Symbol";
         valid = false;
-        if (strcmp(transitionsArray[0], retSy)==0 || strcmp(transitionsArray[1], retSy)==0 || strcmp("halted", retSy)==0) valid = true;
+        if (strcmp(transitionsArray[0], retTr)==0 || strcmp(transitionsArray[1], retTr)==0 || strcmp("halted", retTr)==0) valid = true;
         if (!valid) throw "Turing Machine Invalid Transition";
     }
     catch (char const* c){ // turing machine error, pass it to returned objects

@@ -1,6 +1,6 @@
 -- ABI functions
 @[extern "general_transition_function"] constant GeneralTransitionFunction
-  /- Q, Γ, and transitions passed from an instance of a TM -/
+  /- Q, Γ, accept, reject, and transitions passed from an instance of a TM -/
   (Q : List String) (Γ : List String) (transitions : (String × String))
   /- Machine program as a yaml table stored in a string -/
   (program : String)

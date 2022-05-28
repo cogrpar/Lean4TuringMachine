@@ -49,9 +49,9 @@ namespace TuringMachine
   axiom ax__b_not_in_sigma : (List.elem b sigma)=false -- postulate that the provided sigma does not contain b
 
   -- Define the machine's states
-  constant Q : List String := ["right", "carry", "done"] -- list of possible states the machine can be in
+  constant Q : List String := ["b", "c", "e", "f"] -- list of possible states the machine can be in
   constant q₀ : String := List.get! 0 Q -- state that the machine starts in
-  constant q_accept : String := List.get! 2 Q -- state that results in the machine halting once reached, signifying the program ran to completion successfully
+  constant q_accept : String := "halted" -- state that results in the machine halting once reached, signifying the program ran to completion successfully
   constant q_reject : String := "reject" -- state that results in the machine halting once reached, signifying the transition function rejected its inputs
   axiom ax__q₀_q_accept_q_reject_in_Q : (List.elem q₀ Q)=true ∧ (List.elem q_accept Q)=true ∧ (List.elem q_reject Q)=true -- postulate that the provided Q contains q₀, q_accept, and q_reject
 
@@ -76,33 +76,11 @@ namespace TuringMachine
     # (source: https://github.com/aepsilon/turing-machine-viz)
   "
   constant δ (q : String) (s : String) : (String × (String × String)) := -- transition function of the form '(Q−{q_accept, q_reject}) × Γ → Q × Γ × {−1, 1}'
-    if List.elem q Q 
-      /-
-        q is an element of Q (ie. the current state of the machine)
-      -/ 
-    ∧ q != q_accept ∧ q != q_reject
-      /-
-        q is not q_accept or q_reject (ie. q ∈ Q-{q_accept, q_reject})
-      -/
-    ∧ List.elem s Γ
-      /-
-        s is an element of Γ (ie. s is the symbol on the current square)
-      -/
-  then
-    if (q == Q.get! 0) then
-      if (List.elem s [Γ.get! 0, Γ.get! 1]) then
-        (Q.get! 0, s, transitions.2) -- move right
-      else
-        (Q.get! 1, s, transitions.1) -- move left
-    else if (q == Q.get! 1) then
-      if (List.elem s [Γ.get! 0]) then
-        (Q.get! 1, Γ.get! 1, transitions.1) -- move left
-      else
-        (Q.get! 2, Γ.get! 0, transitions.1) -- move left
-    else -- done
-      (q_accept, s, transitions.2) -- accept state, don't change tape, move to the right once more before halting
-  else -- transition function rejects the inputs
-    (q_reject, s, transitions.2) -- reject state, don't change tape, move to the right once more before halting
+    let output := GeneralTransitionFunction Q Γ transitions program q s
+    if output.2.1 == "' '" then
+      (output.1, " ", output.2.2)
+    else
+      output
   axiom ax__δ_inputs_yield_correct_outputs : ∀(q s : String),
     if ¬(List.elem q (List.remove q_accept (List.remove q_reject Q)) ∧ List.elem s Γ) then 
       (δ q s).1 = q_reject
@@ -170,7 +148,7 @@ theorem showValid : (TuringMachine.valid TuringMachine.TM = true) :=
 #check showValid -- the rest of the script will only run without error if TM is shown to be valid above
 
 -- Define the componenets needed to impliment a machine, namely the tape, the current position of the machine head on the tape (measured as number of spaces from the leftmost cell), and the current state
-constant Tape : (List String × Nat × String) := (["1", "0", "1"], 0, "right")
+constant Tape : (List String × Nat × String) := ([TuringMachine.b], 0, "c")
 
 -- function that takes an instance of a Turing Machine, a tape of symbols, and the current position of the machine head and returns the updated tape and head position
 def stepMachine : (List String × Nat × String) → (List String × Nat × String) :=
@@ -219,6 +197,4 @@ def stepMachine : (List String × Nat × String) → (List String × Nat × Stri
           (tape_data_updated, tape_pos_updated, q)
 
 
-#eval stepMachine (stepMachine (stepMachine (stepMachine (stepMachine (stepMachine Tape))))) -- 5 steps for this program to halt
-
-#eval (GeneralTransitionFunction ["b", "c", "e", "f"] ["test1", "test2", "symbol", " ", "m", "0", "1"] ("-1", "+1") TuringMachine.program "c" " ")
+#eval stepMachine (stepMachine (stepMachine (stepMachine (stepMachine (stepMachine (stepMachine (stepMachine (stepMachine (stepMachine Tape))))))))) -- running the program for a few steps to demo its behavior
