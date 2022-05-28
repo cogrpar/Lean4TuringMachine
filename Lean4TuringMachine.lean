@@ -76,7 +76,7 @@ namespace TuringMachine
     # (source: https://github.com/aepsilon/turing-machine-viz)
   "
   constant δ (q : String) (s : String) : (String × (String × String)) := -- transition function of the form '(Q−{q_accept, q_reject}) × Γ → Q × Γ × {−1, 1}'
-    let output := GeneralTransitionFunction Q Γ transitions program q s
+    let output := GeneralTransitionFunction Q Γ q_accept q_reject transitions program q s
     if output.2.1 == "' '" then
       (output.1, " ", output.2.2)
     else

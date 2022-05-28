@@ -25,10 +25,10 @@ std::vector<char*> split (char* input, char* delim){
     return result;
 }
 
-extern "C" lean_object * general_transition_function(lean_object * Q, lean_object * Gamma, lean_object * transitions, lean_object * table, lean_object * q, lean_object * s, double QLen, double GammaLen, lean_object /* w */) {
+extern "C" lean_object * general_transition_function(lean_object * Q, lean_object * Gamma, lean_object * q_accept, lean_object * q_reject, lean_object * transitions, lean_object * table, lean_object * q, lean_object * s, double QLen, double GammaLen, lean_object /* w */) {
     // returns (String × (String × String)) of the form Q × Γ × {−1, 1}
 
-    // convert Q from List String to a char* array
+    // convert Q from List String to a char array
     char* QArray[(int)QLen];
     lean_object ** QCtor = (lean_to_ctor(Q)->m_objs);
     for (int i = 0; i < QLen-1; i++){
@@ -37,7 +37,7 @@ extern "C" lean_object * general_transition_function(lean_object * Q, lean_objec
     }
     QArray[(int)QLen-1] = lean_to_string(QCtor[0])->m_data;
 
-    // convert Gamma from List String to a char* array
+    // convert Gamma from List String to a char array
     char* GammaArray[(int)GammaLen];
     lean_object ** GammaCtor = (lean_to_ctor(Gamma)->m_objs);
     for (int i = 0; i < GammaLen-1; i++){
@@ -46,7 +46,11 @@ extern "C" lean_object * general_transition_function(lean_object * Q, lean_objec
     }
     GammaArray[(int)GammaLen-1] = lean_to_string(GammaCtor[0])->m_data;
 
-    // convert transitions from (String × String) to a char* array
+    // get accept and reject states as char arrays
+    char* accept = lean_to_string(q_accept)->m_data;
+    char* reject = lean_to_string(q_reject)->m_data;
+
+    // convert transitions from (String × String) to a char array
     char* transitionsArray[2] = {lean_to_string(lean_ctor_get(transitions, 0))->m_data, lean_to_string(lean_ctor_get(transitions, 1))->m_data};
 
     // get the program, current state, and current symbol as strings
@@ -154,9 +158,9 @@ extern "C" lean_object * general_transition_function(lean_object * Q, lean_objec
                         }
                         if (reachedEnd && !reachedSymbol){
                             // the end was reached without finding the symbol, ie. the machine has halted
-                            retSt = "halted";
-                            retSy = "halted";
-                            retTr = "halted";
+                            retSt = accept;
+                            retSy = accept;
+                            retTr = accept;
                         }
                         else if (!reachedEnd && reachedSymbol){
                             // located table entry for this machine configuration
@@ -242,10 +246,10 @@ extern "C" lean_object * general_transition_function(lean_object * Q, lean_objec
         if (strcmp(transitionsArray[0], retTr)==0 || strcmp(transitionsArray[1], retTr)==0 || strcmp("halted", retTr)==0) valid = true;
         if (!valid) throw "Turing Machine Invalid Transition";
     }
-    catch (char const* c){ // turing machine error, pass it to returned objects
-        returnState = lean_mk_string(c);
+    catch (char const* c){ // turing machine error, pass it to returned objects with the reject state
+        returnState = lean_mk_string(reject);
         returnSymbol = lean_mk_string(c);
-        returnTransition = lean_mk_string(c);
+        returnTransition = lean_mk_string("+1");
     }
 
     lean_object * res_1 = lean_alloc_ctor(0, 2, 0);
