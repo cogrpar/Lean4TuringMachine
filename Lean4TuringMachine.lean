@@ -23,6 +23,15 @@ namespace List
       else false
 end List
 
+namespace membership
+  -- this axiom assumes that a given element String is a member of a given List String as long as true is also passed
+  private axiom assume_membership (e : String) (l : List String) (valid_basis : Bool) : if valid_basis == true then (List.elem e l)=true else false
+  notation:min e "∈" l => assume_membership e l (CheckMem e l) -- define notation to be able to prove list membership for strings
+
+  example : (List.elem "hello" ["hello", "world"]) = true :=
+    "hello" ∈ ["hello", "world"]
+end membership
+
 /-
 NOTE: I am using List in place of sets
 

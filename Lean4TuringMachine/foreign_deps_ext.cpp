@@ -28,7 +28,7 @@ std::vector<char*> split (char* input, char* delim){
 extern "C" lean_object * general_transition_function(lean_object * Q, lean_object * Gamma, lean_object * q_accept, lean_object * q_reject, lean_object * transitions, lean_object * table, lean_object * q, lean_object * s, double QLen, double GammaLen, lean_object /* w */) {
     // returns (String × (String × String)) of the form Q × Γ × {−1, 1}
 
-    // convert Q from List String to a char array
+    // convert Q from List String to a char* array
     char* QArray[(int)QLen];
     lean_object ** QCtor = (lean_to_ctor(Q)->m_objs);
     for (int i = 0; i < QLen-1; i++){
@@ -37,7 +37,7 @@ extern "C" lean_object * general_transition_function(lean_object * Q, lean_objec
     }
     QArray[(int)QLen-1] = lean_to_string(QCtor[0])->m_data;
 
-    // convert Gamma from List String to a char array
+    // convert Gamma from List String to a char* array
     char* GammaArray[(int)GammaLen];
     lean_object ** GammaCtor = (lean_to_ctor(Gamma)->m_objs);
     for (int i = 0; i < GammaLen-1; i++){
@@ -50,7 +50,7 @@ extern "C" lean_object * general_transition_function(lean_object * Q, lean_objec
     char* accept = lean_to_string(q_accept)->m_data;
     char* reject = lean_to_string(q_reject)->m_data;
 
-    // convert transitions from (String × String) to a char array
+    // convert transitions from (String × String) to a char* array
     char* transitionsArray[2] = {lean_to_string(lean_ctor_get(transitions, 0))->m_data, lean_to_string(lean_ctor_get(transitions, 1))->m_data};
 
     // get the program, current state, and current symbol as strings
@@ -261,4 +261,32 @@ extern "C" lean_object * general_transition_function(lean_object * Q, lean_objec
     lean_ctor_set(res_1, 1, res_2); // (Q × (Γ × {−1, 1}))
 
     return res_1;
+}
+
+extern "C" lean_object * check_mem (lean_object * elem, lean_object * list, double listLen, lean_object /* w */){
+    // function to check list membership
+
+    // convert list from List String to a char* array
+    char* listArray[(int)listLen];
+    lean_object ** listCtor = (lean_to_ctor(list)->m_objs);
+    for (int i = 0; i < listLen-1; i++){
+        listArray[i] = lean_to_string(listCtor[0])->m_data;
+        listCtor = (lean_to_ctor(listCtor[1])->m_objs);
+    }
+    listArray[(int)listLen-1] = lean_to_string(listCtor[0])->m_data;
+
+    // convert elem from lean_object to char array
+    char* elemString = lean_to_string(elem)->m_data;
+
+    // check to see if elemString is a member of listArray
+    bool member = false;
+    for (int i = 0; i < listLen; i++){
+        if (strcmp(listArray[i], elemString)==0){
+            member = true;
+            break;
+        }
+    }
+
+    if (member) return (lean_object *)true; // check membership
+    else return (lean_object *)false;
 }
