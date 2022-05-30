@@ -262,31 +262,3 @@ extern "C" lean_object * general_transition_function(lean_object * Q, lean_objec
 
     return res_1;
 }
-
-extern "C" lean_object * check_mem (lean_object * elem, lean_object * list, double listLen, lean_object /* w */){
-    // function to check list membership
-
-    // convert list from List String to a char* array
-    char* listArray[(int)listLen];
-    lean_object ** listCtor = (lean_to_ctor(list)->m_objs);
-    for (int i = 0; i < listLen-1; i++){
-        listArray[i] = lean_to_string(listCtor[0])->m_data;
-        listCtor = (lean_to_ctor(listCtor[1])->m_objs);
-    }
-    listArray[(int)listLen-1] = lean_to_string(listCtor[0])->m_data;
-
-    // convert elem from lean_object to char array
-    char* elemString = lean_to_string(elem)->m_data;
-
-    // check to see if elemString is a member of listArray
-    bool member = false;
-    for (int i = 0; i < listLen; i++){
-        if (strcmp(listArray[i], elemString)==0){
-            member = true;
-            break;
-        }
-    }
-
-    if (member) return (lean_object *)true; // check membership
-    else return (lean_object *)false;
-}

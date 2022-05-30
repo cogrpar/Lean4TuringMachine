@@ -2,6 +2,9 @@ import AxiomaticSystem
 import Lean4TuringMachine.foreign_deps
 open AxiomaticSystem
 
+def justify_axiom (b : Bool) (ax : String := "the previous axiom") : IO Unit := -- function that can be used to spot invalid axioms
+    unless b do throw $ IO.userError s!"the assumption of {ax} is not valid"
+
 namespace List
   -- define a function that removes all instances of a passed element from a list (corresponds to setminus when using lists in place of sets)
   def remove {α : Type u} [BEq α] : α → List α → List α
@@ -23,15 +26,6 @@ namespace List
       else false
 end List
 
-namespace membership
-  -- this axiom assumes that a given element String is a member of a given List String as long as true is also passed
-  private axiom assume_membership (e : String) (l : List String) (valid_basis : Bool) : if valid_basis == true then (List.elem e l)=true else false
-  notation:min e "∈" l => assume_membership e l (CheckMem e l) -- define notation to be able to prove list membership for strings
-
-  example : (List.elem "hello" ["hello", "world"]) = true :=
-    "hello" ∈ ["hello", "world"]
-end membership
-
 /-
 NOTE: I am using List in place of sets
 
@@ -51,18 +45,22 @@ namespace TuringMachine
   -- Define the finite alphabet
   constant Γ : List String := ["1", "0", b] -- finite alphabet including blank symbol 'b' that can be stored on the tape
   axiom ax__b_in_Γ : (List.elem b Γ)=true -- postulate that the provided Γ contains b
+  #eval justify_axiom (List.elem b Γ) "ax__b_in_Γ" -- justify the previous axiom
 
   -- Define the machine's input alphabet
   constant sigma : List String := List.remove b Γ -- specified input alphabet of M, which is a subset of Γ and does not include b
   axiom ax__sigma_subset_Γ : (List.sublist sigma Γ)=true -- postulate that the provided sigma is a subset of Γ
+  #eval justify_axiom (List.sublist sigma Γ) "ax__sigma_subset_Γ" -- justify the previous axiom
   axiom ax__b_not_in_sigma : (List.elem b sigma)=false -- postulate that the provided sigma does not contain b
+  #eval justify_axiom (!List.elem b sigma) "ax__b_not_in_sigma" -- justify the previous axiom
 
   -- Define the machine's states
-  constant Q : List String := ["b", "c", "e", "f"] -- list of possible states the machine can be in
+  constant Q : List String := ["b", "c", "e", "f", "reject", "halted"] -- list of possible states the machine can be in
   constant q₀ : String := List.get! 0 Q -- state that the machine starts in
   constant q_accept : String := "halted" -- state that results in the machine halting once reached, signifying the program ran to completion successfully
   constant q_reject : String := "reject" -- state that results in the machine halting once reached, signifying the transition function rejected its inputs
   axiom ax__q₀_q_accept_q_reject_in_Q : (List.elem q₀ Q)=true ∧ (List.elem q_accept Q)=true ∧ (List.elem q_reject Q)=true -- postulate that the provided Q contains q₀, q_accept, and q_reject
+  #eval justify_axiom ((List.elem q₀ Q)  ∧ (List.elem q_accept Q) ∧ (List.elem q_reject Q)) "ax__q₀_q_accept_q_reject_in_Q" -- justify the previous axiom
 
   -- Define the transition function
   constant transitions : (String × String) := ("-1", "+1") -- pair of strings representing the possible transitions of the machine head
@@ -95,10 +93,12 @@ namespace TuringMachine
       (δ q s).1 = q_reject
     else
       ¬((δ q s).1 = q_reject)
+  --#eval justify_axiom (false) "ax__δ_inputs_yield_correct_outputs" -- justify the previous axiom TODO translate the last axiom
   axiom ax__δ_outputs_are_correct_form : ∀(q s : String),
       List.elem (δ q s).1 Q 
       ∧ List.elem (δ q s).2.1 Γ
       ∧ ((δ q s).2.2 = transitions.1 ∨ (δ q s).2.2 = transitions.2)
+  --#eval justify_axiom (false) "ax__δ_outputs_are_correct_form" -- justify the previous axiom TODO translate the last axiom
 
 
   -- Instance of Turing Machine
@@ -157,7 +157,7 @@ theorem showValid : (TuringMachine.valid TuringMachine.TM = true) :=
 #check showValid -- the rest of the script will only run without error if TM is shown to be valid above
 
 -- Define the componenets needed to impliment a machine, namely the tape, the current position of the machine head on the tape (measured as number of spaces from the leftmost cell), and the current state
-constant Tape : (List String × Nat × String) := ([TuringMachine.b], 0, "c")
+constant Tape : (List String × Nat × String) := ([TuringMachine.b], 0, "b")
 
 -- function that takes an instance of a Turing Machine, a tape of symbols, and the current position of the machine head and returns the updated tape and head position
 def stepMachine : (List String × Nat × String) → (List String × Nat × String) :=
@@ -206,4 +206,4 @@ def stepMachine : (List String × Nat × String) → (List String × Nat × Stri
           (tape_data_updated, tape_pos_updated, q)
 
 
-#eval stepMachine (stepMachine (stepMachine (stepMachine (stepMachine (stepMachine (stepMachine (stepMachine (stepMachine (stepMachine Tape))))))))) -- running the program for a few steps to demo its behavior
+#eval stepMachine (stepMachine (stepMachine (stepMachine (stepMachine (stepMachine (stepMachine (stepMachine (stepMachine Tape)))))))) -- running the program for a few steps to demo its behavior
