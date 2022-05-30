@@ -41,7 +41,7 @@ extern "C" lean_object * general_transition_function(lean_object * Q, lean_objec
     char* GammaArray[(int)GammaLen];
     lean_object ** GammaCtor = (lean_to_ctor(Gamma)->m_objs);
     for (int i = 0; i < GammaLen-1; i++){
-        GammaArray[i] = lean_to_string(GammaCtor[0])->m_data;
+        GammaArray[i] = split(lean_to_string(GammaCtor[0])->m_data, "#").at(0);
         GammaCtor = (lean_to_ctor(GammaCtor[1])->m_objs);
     }
     GammaArray[(int)GammaLen-1] = lean_to_string(GammaCtor[0])->m_data;
@@ -53,10 +53,19 @@ extern "C" lean_object * general_transition_function(lean_object * Q, lean_objec
     // convert transitions from (String × String) to a char* array
     char* transitionsArray[2] = {lean_to_string(lean_ctor_get(transitions, 0))->m_data, lean_to_string(lean_ctor_get(transitions, 1))->m_data};
 
+    // two boolean values that return true if this function justifies their respective assumptions
+    char* ax__transition_function_inputs_yield_correct_outputs = "false";
+    char* ax__transition_function_outputs_are_correct_form = "false";
+
     // get the program, current state, and current symbol as strings
     char* program = lean_to_string(table)->m_data;
     char* currentState = lean_to_string(q)->m_data;
     char* currentSymbol = lean_to_string(s)->m_data;
+    for (int i = 0; i < strlen(currentSymbol); i++)
+        if (currentSymbol[i] == '#'){
+            currentSymbol[i] = '\0';
+            break;
+        }
     if ((strcmp(currentSymbol, " ")==0)) currentSymbol = "\' \'";
 
     // split program into lines
@@ -106,6 +115,7 @@ extern "C" lean_object * general_transition_function(lean_object * Q, lean_objec
             if (valid) break;
         }
         if (!valid) throw "Turing Machine Invalid Symbol";
+        ax__transition_function_inputs_yield_correct_outputs = "true"; // the above lines guarantee that the input values are of the correct form and thus yield outputs of the correct form or an exception is thrown
 
         // find the transition based on the table
         char* retSy = "";
@@ -227,7 +237,7 @@ extern "C" lean_object * general_transition_function(lean_object * Q, lean_objec
         returnSymbol = lean_mk_string(retSy);
         returnTransition = lean_mk_string(retTr);
 
-        // make sure that the return state and symbol are valid
+        // make sure that the return state, symbol, and transition are valid
         valid = false;
         for (int i = 0; i < QLen; i++){
             valid = (strcmp(QArray[i], retSt)==0);
@@ -245,18 +255,37 @@ extern "C" lean_object * general_transition_function(lean_object * Q, lean_objec
         valid = false;
         if (strcmp(transitionsArray[0], retTr)==0 || strcmp(transitionsArray[1], retTr)==0 || strcmp("halted", retTr)==0) valid = true;
         if (!valid) throw "Turing Machine Invalid Transition";
+        ax__transition_function_outputs_are_correct_form = "true"; // the above lines guarantee that the return values are of the correct form or an exception is thrown
     }
-    catch (char const* c){ // turing machine error, pass it to returned objects with the reject state
-        returnState = lean_mk_string(reject);
-        returnSymbol = lean_mk_string(c);
+    catch (char const* e){ // turing machine error, pass it to returned objects with the reject state
+        returnState = lean_mk_string(reject); 
+        ax__transition_function_inputs_yield_correct_outputs = "true"; // in the event of an exception, the inputs yielded the reject state
+        // append the error message to the end of the current symbol as a comment
+        char* errorSymbol = new char[strlen(currentSymbol)+2+strlen(e)];
+        for (int i = 0; i < strlen(currentSymbol); i++){
+            errorSymbol[i] = currentSymbol[i];
+        }
+        errorSymbol[strlen(currentSymbol)] = '#';
+        for (int i = 0; i < strlen(e); i++){
+            errorSymbol[i+strlen(currentSymbol)+1] = e[i];
+        }
+        errorSymbol[strlen(currentSymbol)+1+strlen(e)] = '\0';
+        returnSymbol = lean_mk_string(errorSymbol);
         returnTransition = lean_mk_string("+1");
+        ax__transition_function_outputs_are_correct_form = "true"; // in the event of an exception, the return values are of the correct form
     }
 
     lean_object * res_1 = lean_alloc_ctor(0, 2, 0);
     lean_object * res_2 = lean_alloc_ctor(0, 2, 0);
+    lean_object * res_3 = lean_alloc_ctor(0, 2, 0);
+    lean_object * res_4 = lean_alloc_ctor(0, 2, 0);
 
-    lean_ctor_set(res_2, 0, returnSymbol);
-    lean_ctor_set(res_2, 1, returnTransition); // (Γ × {−1, 1})
+    lean_ctor_set(res_4, 0, lean_mk_string(ax__transition_function_inputs_yield_correct_outputs)); // add the boolean values that justify the axiomatic assumptions
+    lean_ctor_set(res_4, 1, lean_mk_string(ax__transition_function_outputs_are_correct_form));
+    lean_ctor_set(res_3, 0, returnTransition);
+    lean_ctor_set(res_3, 1, res_4);
+    lean_ctor_set(res_2, 0, returnSymbol); // (Γ × {−1, 1})
+    lean_ctor_set(res_2, 1, res_3);
     lean_ctor_set(res_1, 0, returnState);
     lean_ctor_set(res_1, 1, res_2); // (Q × (Γ × {−1, 1}))
 

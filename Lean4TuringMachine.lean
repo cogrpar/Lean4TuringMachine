@@ -83,23 +83,30 @@ namespace TuringMachine
     # (source: https://github.com/aepsilon/turing-machine-viz)
   "
   constant δ (q : String) (s : String) : (String × (String × String)) := -- transition function of the form '(Q−{q_accept, q_reject}) × Γ → Q × Γ × {−1, 1}'
-    let output := GeneralTransitionFunction Q Γ q_accept q_reject transitions program q s
+    let output_raw := GeneralTransitionFunction Q Γ q_accept q_reject transitions program q s
+    let output := (output_raw.1, output_raw.2.1, output_raw.2.2.1) -- remove the two booleans that reflect the validity of the axiomatic assumptions
     if output.2.1 == "' '" then
       (output.1, " ", output.2.2)
     else
       output
+  def valid_δ : (Bool × Bool) := -- function that extracts the two booleans that reflect the validity of the axiomatic assumptions from the general transition function
+    let output := (GeneralTransitionFunction Q Γ q_accept q_reject transitions program "" "").2.2.2
+    let inputs_yield_correct_outputs := output.1 == "true"
+    let outputs_are_correct_form := output.2 == "true"
+    (inputs_yield_correct_outputs, outputs_are_correct_form)
   axiom ax__δ_inputs_yield_correct_outputs : ∀(q s : String),
     if ¬(List.elem q (List.remove q_accept (List.remove q_reject Q)) ∧ List.elem s Γ) then 
       (δ q s).1 = q_reject
     else
       ¬((δ q s).1 = q_reject)
-  --#eval justify_axiom (false) "ax__δ_inputs_yield_correct_outputs" -- justify the previous axiom TODO translate the last axiom
+  #eval justify_axiom (valid_δ.1) "ax__δ_inputs_yield_correct_outputs" -- justify the previous axiom
   axiom ax__δ_outputs_are_correct_form : ∀(q s : String),
       List.elem (δ q s).1 Q 
       ∧ List.elem (δ q s).2.1 Γ
       ∧ ((δ q s).2.2 = transitions.1 ∨ (δ q s).2.2 = transitions.2)
-  --#eval justify_axiom (false) "ax__δ_outputs_are_correct_form" -- justify the previous axiom TODO translate the last axiom
+  #eval justify_axiom (valid_δ.2) "ax__δ_outputs_are_correct_form" -- justify the previous axiom
 
+  #eval (GeneralTransitionFunction Q Γ q_accept q_reject transitions program "" "")
 
   -- Instance of Turing Machine
   def TM := (sigma, Γ, Q, δ)
